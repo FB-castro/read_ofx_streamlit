@@ -1,11 +1,25 @@
 from ofxparse import OfxParser
+import io
 
 def getattr_safe(obj, attr):
     return getattr(obj, attr, None)
 
 def parse_ofx_to_dict(file):
     try:
-        ofx = OfxParser.parse(file)
+        # Leitura do arquivo diretamente do objeto carregado
+        byte_string = file.read()
+
+        # Verificar se a primeira linha é em branco e removê-la
+        lines = byte_string.split(b'\n')
+        if lines and lines[0].strip() == b'':
+            byte_string = b'\n'.join(lines[1:])
+
+        # Substituir todas as ocorrências de vírgula por ponto
+        byte_string = byte_string.replace(b',', b'.')
+
+        # Parse the decoded string using a StringIO object
+        ofx = OfxParser.parse(io.BytesIO(byte_string))
+        
         data = {
             "account_id": [],
             "number": [],
@@ -46,7 +60,6 @@ def parse_ofx_to_dict(file):
                 "branch_id": getattr_safe(account, 'branch_id'),
                 "type": getattr_safe(account, 'type')
             }
-
             institution = getattr_safe(account, 'institution')
             if institution:
                 institution_data = {
@@ -55,7 +68,7 @@ def parse_ofx_to_dict(file):
                 }
             else:
                 institution_data = {"organization": None, "fid": None}
-
+            
             statement = getattr_safe(account, 'statement')
             if statement:
                 statement_data = {
@@ -87,7 +100,6 @@ def parse_ofx_to_dict(file):
                             "ticker": None,
                             "security_memo": None
                         }
-
                         row = {**account_data, **institution_data, **statement_data, **transaction_data}
                         for key in row:
                             data[key].append(row[key])
@@ -115,7 +127,6 @@ def parse_ofx_to_dict(file):
                             "ticker": None,
                             "security_memo": None
                         }
-
                         row = {**account_data, **institution_data, **statement_data, **position_data}
                         for key in row:
                             data[key].append(row[key])
@@ -145,7 +156,6 @@ def parse_ofx_to_dict(file):
                         "unit_price": None,
                         "market_value": None
                     }
-
                     row = {**account_data, **institution_data, **statement_data, **security_data}
                     for key in row:
                         data[key].append(row[key])
